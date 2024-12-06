@@ -1,5 +1,5 @@
 import java.io.*;
-import java.net.URL; // Add this import for the URL class
+import java.net.URL;
 import java.util.*;
 
 public class StrongPasswordChecker {
@@ -8,10 +8,11 @@ public class StrongPasswordChecker {
     private static final int PROBING_TABLE_SIZE = 20000;
 
     public static void main(String[] args) throws IOException {
-        HashTableChaining chainingTable1 = new HashTableChaining(CHAINING_TABLE_SIZE, 37);
-        HashTableChaining chainingTable2 = new HashTableChaining(CHAINING_TABLE_SIZE, 31);
-        HashTableProbing probingTable1 = new HashTableProbing(PROBING_TABLE_SIZE, 37);
-        HashTableProbing probingTable2 = new HashTableProbing(PROBING_TABLE_SIZE, 31);
+        // Initialize hash tables with both hash functions
+        HashTableChaining chainingTable1 = new HashTableChaining(CHAINING_TABLE_SIZE, true);
+        HashTableChaining chainingTable2 = new HashTableChaining(CHAINING_TABLE_SIZE, false);
+        HashTableProbing probingTable1 = new HashTableProbing(PROBING_TABLE_SIZE, true);
+        HashTableProbing probingTable2 = new HashTableProbing(PROBING_TABLE_SIZE, false);
 
         // Load dictionary
         BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -47,12 +48,20 @@ public class StrongPasswordChecker {
                                               HashTableProbing probingTable2) {
         boolean isStrong = true;
 
+        // Check minimum length
         if (password.length() < 8) {
             System.out.println("Password is too short.");
             isStrong = false;
         }
 
-        if (chainingTable1.contains(password) || chainingTable1.contains(password.replaceAll("\\d", ""))) {
+        // Check if password is a dictionary word or dictionary word + digit
+        String passwordBase = password.replaceAll("\\d", "");
+        boolean inDictionary = chainingTable1.contains(password) || chainingTable1.contains(passwordBase) ||
+                chainingTable2.contains(password) || chainingTable2.contains(passwordBase) ||
+                probingTable1.contains(password) || probingTable1.contains(passwordBase) ||
+                probingTable2.contains(password) || probingTable2.contains(passwordBase);
+
+        if (inDictionary) {
             System.out.println("Password is a dictionary word or a dictionary word followed by digits.");
             isStrong = false;
         }
@@ -72,14 +81,14 @@ public class StrongPasswordChecker {
     static class HashTableChaining {
         private LinkedList<Entry>[] table;
         private int comparisons = 0;
-        private int multiplier;
+        private boolean useOldHash;
 
-        public HashTableChaining(int size, int multiplier) {
+        public HashTableChaining(int size, boolean useOldHash) {
             this.table = new LinkedList[size];
             for (int i = 0; i < size; i++) {
                 table[i] = new LinkedList<>();
             }
-            this.multiplier = multiplier;
+            this.useOldHash = useOldHash;
         }
 
         public void insert(String key, int value) {
@@ -100,8 +109,15 @@ public class StrongPasswordChecker {
 
         private int hash(String key) {
             int hash = 0;
-            for (int i = 0; i < key.length(); i++) {
-                hash = (hash * multiplier) + key.charAt(i);
+            if (useOldHash) { // Old hashCode implementation
+                int skip = Math.max(1, key.length() / 8);
+                for (int i = 0; i < key.length(); i += skip) {
+                    hash = (hash * 37) + key.charAt(i);
+                }
+            } else { // Modern hashCode implementation
+                for (int i = 0; i < key.length(); i++) {
+                    hash = (hash * 31) + key.charAt(i);
+                }
             }
             return Math.abs(hash) % table.length;
         }
@@ -115,11 +131,11 @@ public class StrongPasswordChecker {
     static class HashTableProbing {
         private Entry[] table;
         private int comparisons = 0;
-        private int multiplier;
+        private boolean useOldHash;
 
-        public HashTableProbing(int size, int multiplier) {
+        public HashTableProbing(int size, boolean useOldHash) {
             this.table = new Entry[size];
-            this.multiplier = multiplier;
+            this.useOldHash = useOldHash;
         }
 
         public void insert(String key, int value) {
@@ -144,8 +160,15 @@ public class StrongPasswordChecker {
 
         private int hash(String key) {
             int hash = 0;
-            for (int i = 0; i < key.length(); i++) {
-                hash = (hash * multiplier) + key.charAt(i);
+            if (useOldHash) { // Old hashCode implementation
+                int skip = Math.max(1, key.length() / 8);
+                for (int i = 0; i < key.length(); i += skip) {
+                    hash = (hash * 37) + key.charAt(i);
+                }
+            } else { // Modern hashCode implementation
+                for (int i = 0; i < key.length(); i++) {
+                    hash = (hash * 31) + key.charAt(i);
+                }
             }
             return Math.abs(hash) % table.length;
         }
